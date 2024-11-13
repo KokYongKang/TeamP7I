@@ -1,4 +1,5 @@
 #include "pico/stdlib.h"
+#include <stdint.h>
 #include "hardware/uart.h"
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
@@ -7,25 +8,15 @@
 #include "queue.h"
 #include <stdio.h>
 #include <string.h>
+#include "barcode.h"
 
 #define IR_BARCODE_DIGITAL_PIN 12 // Detect edge (D0 -> GPI12)
 #define IR_BARCODE_ANALOG_PIN 26  // Read ADC (A0 -> GPIO26)
 #define MAX_BUFFER_SIZE 1024      // large buffer size
 #define DELAY_MS 10               // Debounce delay in milliseconds
 #define INACTIVE_TIMEOUT_MS 3000  // Timeout duration for inactivity reset
-#define WHITE_STRIP_THRESHOLD_US 1000
-#define LINE_FOLLOWING_PIN 27 // ADC for line-following IR sensor
-#define LINE_THRESHOLD 1000   // Threshold ADC value to detect line
-#define DEBOUNCE_DELAY_FAST_MS 5
-#define DEBOUNCE_DELAY_SLOW_MS 15
+#define WHITE_STRIP_THRESHOLD_US 500
 
-// Motor control pins
-#define R_MOTOR_IN3 8
-#define R_MOTOR_IN4 9
-#define R_MOTOR_ENA 1
-#define L_MOTOR_IN1 2
-#define L_MOTOR_IN2 3
-#define L_MOTOR_ENB 0
 
 typedef enum
 {
@@ -42,12 +33,9 @@ int pulse_index = 0;
 int binary_index = 0;
 char binary_pattern[MAX_BUFFER_SIZE];
 uint16_t adc_value;
-
 volatile uint32_t last_interrupt_time = 0;
 
 // Function declarations
-void initialize_motors();
-void control_motors(int left_speed, int right_speed);
 void reset_scanning();
 void gpio_callback(uint gpio, uint32_t events);
 void analyze_and_compile_pattern();
@@ -101,9 +89,8 @@ Code39Char code39_table[] = {
     {'Z', "1000111011101010"},
     {'*', "1000101110111010"}};
 
-    // Function to reverse the binary pattern
-    void
-    reverse_binary_pattern(char *original, char *reversed, int length)
+// Function to reverse the binary pattern
+void reverse_binary_pattern(char *original, char *reversed, int length)
 {
     for (int i = 0; i < length; i++)
     {
@@ -173,52 +160,34 @@ void shift_binary_pattern_right(char *pattern, int length)
 
 void analyze_and_compile_pattern()
 {
-    int total_pulse_width = 0;
-    int count = pulse_index;
-
-    // Calculate total pulse width and find maximum pulse width
     int max_pulse_width = 0;
-    for (int i = 0; i < count; i++)
+
+    // Find the maximum pulse width in recorded pulses
+    for (int i = 0; i < pulse_index; i++)
     {
-        total_pulse_width += pulse_widths[i];
         if (pulse_widths[i] > max_pulse_width)
         {
             max_pulse_width = pulse_widths[i];
         }
     }
 
-    // Avoid division by zero
-    if (count > 0)
+    // Compile the binary pattern
+    for (int i = 0; i < pulse_index; i++)
     {
-        int average_pulse_width = total_pulse_width / count;
-        binary_index = 0; // Reset binary index for new pattern
-
-        // Compile the binary pattern
-        for (int i = 0; i < count; i++)
+        if (pulse_widths[i] * 2 < max_pulse_width)
         {
-            // Check for valid pulse width before adding to binary pattern
-            if (pulse_widths[i] > 0)
-            {
-                if (pulse_widths[i] < average_pulse_width / 2)
-                {
-                    // Short pulses indicate black bars
-                    binary_pattern[binary_index++] = (i % 2 == 0) ? '1' : '0';
-                }
-                else
-                {
-                    // Long pulses indicate white spaces
-                    strncpy(&binary_pattern[binary_index], (i % 2 == 0) ? "111" : "000", 3);
-                    binary_index += 3;
-                }
-            }
+            binary_pattern[binary_index++] = (i % 2 == 0) ? '1' : '0';
+        }
+        else
+        {
+            strncpy(&binary_pattern[binary_index], (i % 2 == 0) ? "111" : "000", 3);
+            binary_index += 3;
         }
 
-        // Null-terminate the binary pattern
-        binary_pattern[binary_index] = '\0';
-
-        // Print and decode when binary index reaches a multiple of 48
-        if (binary_index >= 48)
+        // Print and decode when binary index reaches 48
+        if (binary_index % 48 == 0)
         {
+            binary_pattern[binary_index] = '\0';
             printf("Binary Pattern: %s\n", binary_pattern);
 
             // Attempt to decode the binary pattern
@@ -228,6 +197,9 @@ void analyze_and_compile_pattern()
             if (!decoded_successfully)
             {
                 printf("Decoding failed. Attempting with reversed binary pattern...\n");
+
+                // Shift the binary pattern to meet the requirement
+                shift_binary_pattern_right(binary_pattern, 48);
                 char reversed_pattern[MAX_BUFFER_SIZE];
                 reverse_binary_pattern(binary_pattern, reversed_pattern, binary_index);
 
@@ -238,13 +210,10 @@ void analyze_and_compile_pattern()
                 }
             }
 
-            // Reset for next pattern
-            binary_index = 0;
+            binary_index = 0; // Reset for next pattern
         }
     }
-
-    // Reset pulse index after processing
-    pulse_index = 0;
+    pulse_index = 0; // Reset pulse index
 }
 
 // Reset scanning state
@@ -318,52 +287,10 @@ void gpio_callback(uint gpio, uint32_t events)
     }
 }
 
-void follow_line()
-{
-    adc_select_input(1); // Select the line-following ADC pin (GPIO 27)
-    uint16_t line_sensor_value = adc_read();
-
-    int error = LINE_THRESHOLD - line_sensor_value;
-    int base_speed = 70; // Base speed for both motors
-
-    // Adjust speeds based on the error
-    int left_speed = base_speed - error * 0.1; // Adjust sensitivity as needed
-    int right_speed = base_speed + error * 0.1;
-
-    // Keep speeds within allowable range (e.g., 0 to 100)
-    if (left_speed < 0)
-        left_speed = 0;
-    if (left_speed > 100)
-        left_speed = 100;
-    if (right_speed < 0)
-        right_speed = 0;
-    if (right_speed > 100)
-        right_speed = 100;
-
-    control_motors(left_speed, right_speed);
-}
-
-void initialize_motors()
-{
-    gpio_init(R_MOTOR_IN3);
-    gpio_init(R_MOTOR_IN4);
-    gpio_init(R_MOTOR_ENA);
-    gpio_init(L_MOTOR_IN1);
-    gpio_init(L_MOTOR_IN2);
-    gpio_init(L_MOTOR_ENB);
-
-    gpio_set_dir(R_MOTOR_IN3, GPIO_OUT);
-    gpio_set_dir(R_MOTOR_IN4, GPIO_OUT);
-    gpio_put(L_MOTOR_IN2, 1);
-    gpio_put(R_MOTOR_IN3, 0);
-    gpio_put(R_MOTOR_IN4, 1);
-}
-
 int main()
 {
     stdio_init_all();
     adc_init();
-    initialize_motors();
 
     // Set up digital input for barcode IR sensor
     gpio_init(IR_BARCODE_DIGITAL_PIN);
@@ -378,17 +305,9 @@ int main()
     adc_gpio_init(IR_BARCODE_ANALOG_PIN);
     adc_select_input(0);
 
-    // Set up analog input for line-following IR sensor
-    adc_gpio_init(LINE_FOLLOWING_PIN);
-    gpio_set_dir(R_MOTOR_ENA, GPIO_OUT);
-    gpio_set_dir(L_MOTOR_IN1, GPIO_OUT);
-    gpio_set_dir(L_MOTOR_IN2, GPIO_OUT);
-    gpio_set_dir(L_MOTOR_ENB, GPIO_OUT);
 
     while (true)
     {
-        follow_line(); // Line-following function
-
         uint32_t current_time = to_ms_since_boot(get_absolute_time());
 
         adc_value = adc_read();
@@ -415,32 +334,4 @@ int main()
     }
 
     return 0;
-}
-
-void control_motors(int left_speed, int right_speed)
-{
-    gpio_put(0, 1); // Enable right motor
-    gpio_put(1, 1); // Enable left motor
-    if (left_speed > right_speed)
-    {
-        gpio_put(L_MOTOR_IN1, 1);
-        gpio_put(L_MOTOR_IN2, 0);
-        gpio_put(R_MOTOR_IN3, 1);
-        gpio_put(R_MOTOR_IN4, 0);
-    }
-    else if (right_speed > left_speed)
-    {
-        gpio_put(L_MOTOR_IN1, 0);
-        gpio_put(L_MOTOR_IN2, 1);
-        gpio_put(R_MOTOR_IN3, 1);
-        gpio_put(R_MOTOR_IN4, 0);
-    }
-    else
-    {
-        // Both motors at same speed
-        gpio_put(L_MOTOR_IN1, 1);
-        gpio_put(L_MOTOR_IN2, 0);
-        gpio_put(R_MOTOR_IN3, 1);
-        gpio_put(R_MOTOR_IN4, 0);
-    }
 }

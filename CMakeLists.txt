@@ -17,7 +17,7 @@ project(${ProjectName})
 pico_sdk_init()
 
 # Add subdirectories
-add_subdirectory(irline)
+add_subdirectory(irline_barcode)
 
 # if you have anything in "lib" folder then uncomment below - remember to add a CMakeLists.txt
 # file to the "lib" directory
