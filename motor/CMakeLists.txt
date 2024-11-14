@@ -1,4 +1,5 @@
-add_executable(${ProjectName}
+add_executable(motor
+    motor.h
     motor.c
 )
 
@@ -10,7 +11,7 @@ target_include_directories(${ProjectName} PRIVATE
     ${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/include
 ) 
 
-target_link_libraries(${ProjectName} 
+target_link_libraries(motor
     pico_stdlib 
     FreeRTOS-Kernel-Heap4 
     hardware_adc  
@@ -19,8 +20,4 @@ target_link_libraries(${ProjectName}
     hardware_pwm
 )
 
-pico_add_extra_outputs(${ProjectName})
-
-# Enable USB output and disable UART output
-pico_enable_stdio_usb(${ProjectName} 1)  
-pico_enable_stdio_uart(${ProjectName} 0)  
+pico_add_extra_outputs(motor)
