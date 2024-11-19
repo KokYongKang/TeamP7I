@@ -1,9 +1,8 @@
-add_executable(motor
-    motor.h
+add_library(motor
     motor.c
 )
 
-target_include_directories(${ProjectName} PRIVATE
+target_include_directories(motor PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
     ${PICO_SDK_PATH}/include    
     ${PICO_SDK_PATH}/hardware   
@@ -19,5 +18,3 @@ target_link_libraries(motor
     hardware_timer 
     hardware_pwm
 )
-
-pico_add_extra_outputs(motor)

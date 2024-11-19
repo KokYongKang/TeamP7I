@@ -18,6 +18,7 @@ pico_sdk_init()
 
 # Add subdirectories
 add_subdirectory(irline_barcode)
+add_subdirectory (irline_detector)
 add_subdirectory(motor)
 add_subdirectory(encoder)
 

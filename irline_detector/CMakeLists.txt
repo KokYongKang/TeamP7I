@@ -8,13 +8,23 @@ target_include_directories(${ProjectName} PRIVATE
     ${PICO_SDK_PATH}/hardware   
     ${FREERTOS_KERNEL_PATH}/include
     ${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/include
+    ${CMAKE_SOURCE_DIR}/motor  # Add this to find motor.h
+    ${CMAKE_SOURCE_DIR}/encoder  # Add this to find motor.h
+
 ) 
 
 target_link_libraries(${ProjectName} 
-    pico_stdlib 
-    FreeRTOS-Kernel-Heap4 
-    hardware_adc  
-    hardware_gpio  
-    hardware_timer 
-    hardware_pwm
+motor
+encoder
+FreeRTOS-Kernel-Heap4
+pico_stdlib
+hardware_pwm
+hardware_adc
+hardware_gpio
 )
+
+pico_add_extra_outputs(${ProjectName})
+
+# Enable USB output and disable UART output
+pico_enable_stdio_usb(${ProjectName} 1)  
+pico_enable_stdio_uart(${ProjectName} 0)  

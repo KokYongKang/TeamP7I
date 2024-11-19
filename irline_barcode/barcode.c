@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "barcode.h"
+#include "motor.h"
+#include "detector.h"
 
 #define IR_BARCODE_DIGITAL_PIN 12 // Detect edge (D0 -> GPI12)
 #define IR_BARCODE_ANALOG_PIN 26  // Read ADC (A0 -> GPIO26)
@@ -16,7 +18,6 @@
 #define DELAY_MS 10               // Debounce delay in milliseconds
 #define INACTIVE_TIMEOUT_MS 3000  // Timeout duration for inactivity reset
 #define WHITE_STRIP_THRESHOLD_US 500
-
 
 typedef enum
 {
@@ -285,53 +286,4 @@ void gpio_callback(uint gpio, uint32_t events)
     {
         analyze_and_compile_pattern();
     }
-}
-
-int main()
-{
-    stdio_init_all();
-    adc_init();
-
-    // Set up digital input for barcode IR sensor
-    gpio_init(IR_BARCODE_DIGITAL_PIN);
-    gpio_set_dir(IR_BARCODE_DIGITAL_PIN, GPIO_IN);
-    gpio_pull_down(IR_BARCODE_DIGITAL_PIN);
-    gpio_set_irq_enabled_with_callback(IR_BARCODE_DIGITAL_PIN,
-                                       GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL,
-                                       true,
-                                       &gpio_callback);
-
-    // Set up analog input for barcode IR sensor
-    adc_gpio_init(IR_BARCODE_ANALOG_PIN);
-    adc_select_input(0);
-
-
-    while (true)
-    {
-        uint32_t current_time = to_ms_since_boot(get_absolute_time());
-
-        adc_value = adc_read();
-        printf("Analog Value: %d\n", adc_value);
-
-        // Check for inactivity and reset if timed out
-        if (current_time - last_interrupt_time >= INACTIVE_TIMEOUT_MS)
-        {
-            reset_scanning();
-            last_interrupt_time = current_time; // Update to prevent repeated resets
-        }
-
-        // Check if this last white pulse width exceeds the threshold
-        if (measure_state == MEASURING_WHITE &&
-            (current_time - last_interrupt_time >= 2500) &&
-            pulse_index == 29)
-        {
-            pulse_widths[pulse_index++] = WHITE_STRIP_THRESHOLD_US;
-            printf("30) Excess white strip detected; inserting '0' into binary pattern.\n");
-            analyze_and_compile_pattern();
-        }
-
-        sleep_ms(100); // Adjust as necessary
-    }
-
-    return 0;
 }
