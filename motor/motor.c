@@ -5,6 +5,7 @@
 
 #include "motor.h"
 #include "../encoder/encoder.h"
+#include "../ultrasonic/ultrasonic.h"
 
 // Define GPIO pins for motor control
 #define RIGHT_MOTOR_PIN_IN3 8   // IN1: input pin for right motor direction control 
@@ -51,8 +52,15 @@ struct repeating_timer pid_timer;
 
 // Function to control the car movements
 void car_control(int car_states){
+    int distance = ultrasonic_filtered_distance(); // Get the filtered distance
+
     switch(car_states){
         case FORWARD:
+            // Safety override: Prevent forward movement if obstacle is too close
+            if (distance != -1 && distance < 15) {
+                car_stop();
+                return; // Exit the function to prevent forward movement
+            }
             car_speed(target_speed);
             car_direction(forward_direction);
             car_move();
