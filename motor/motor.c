@@ -69,7 +69,7 @@ void car_control(int car_states){
             break;
         case TURN_LEFT:
             car_speed(target_speed);
-            car_turn(!turn_right, 90); // Turn right for 90 degrees
+            car_turn(!turn_right, 90); // Turn left for 90 degrees
             car_stop();
             break;
         case STOP:
@@ -160,6 +160,7 @@ void car_stop() {
 
 // Function to turn car right or left at input angle
 void car_turn(bool turn, int angle) {
+    car_move();
     set_direction(RIGHT_MOTOR_PIN_IN3, RIGHT_MOTOR_PIN_IN4, !turn);
     set_direction(LEFT_MOTOR_PIN_IN1, LEFT_MOTOR_PIN_IN2, turn);
     sleep_ms(angle * MS_PER_DEGREE); // Turning delay
