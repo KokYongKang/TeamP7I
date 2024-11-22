@@ -3,6 +3,8 @@
 #include "hardware/gpio.h"
 
 #include "ultrasonic.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 // Define GPIO pins for ultrasonic sensor
 #define TRIG_PIN 4              // Ultrasonic Trigger pin
@@ -28,7 +30,7 @@ void ultrasonic_init(){
 // Function to trigger the ultrasonic sensor
 void ultrasonic_trigger(){
     gpio_put(TRIG_PIN, 1);
-    sleep_us(10);  // 10 microsecond pulse
+    vTaskDelay(pdMS_TO_TICKS(1)); // Trigger pulse duration
     gpio_put(TRIG_PIN, 0);
 }
 

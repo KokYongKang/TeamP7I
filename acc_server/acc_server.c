@@ -10,9 +10,10 @@
 
 #include "../motor/motor.h"
 #include "../encoder/encoder.h"
+#include "../ultrasonic/ultrasonic.h"
 
 #define UDP_PORT 4242
-#define LED_PIN 25
+#define LED_PIN 5
 
 // Task configurations
 #define TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 8)
@@ -47,17 +48,19 @@ static void execute_command(const char* command) {
     if (sscanf(command, "%s %f", cmd_type, &speed) >= 1) {
         if (strcmp(cmd_type, "forward") == 0) {
             printf("↑ FORWARD %.0f%%\n", speed);
-            car_speed(speed / 100.0f * 40); // Scale speed to motor's range (max 40cm/s)
+            car_speed(speed * 40 / 100.0f); // Scale speed to motor's range (max 40cm/s)
             car_control(FORWARD);
         } else if (strcmp(cmd_type, "backward") == 0) {
             printf("↓ BACKWARD %.0f%%\n", speed);
-            car_speed(speed / 100.0f * 40);
+            car_speed(speed * 40 / 100.0f);
             car_control(REVERSE);
         } else if (strcmp(cmd_type, "left") == 0) {
-            printf("← LEFT\n");
+            printf("← LEFT %.0f%%\n", speed);
+            car_speed(speed * 40 / 100.0f);
             car_control(TURN_LEFT);
         } else if (strcmp(cmd_type, "right") == 0) {
-            printf("→ RIGHT\n");
+            printf("→ RIGHT %.0f%%\n", speed);
+            car_speed(speed * 40 / 100.0f);
             car_control(TURN_RIGHT);
         } else if (strcmp(cmd_type, "stop") == 0) {
             printf("■ STOP\n");

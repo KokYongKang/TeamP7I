@@ -6,6 +6,8 @@
 #include "motor.h"
 #include "../encoder/encoder.h"
 #include "../ultrasonic/ultrasonic.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 // Define GPIO pins for motor control
 #define RIGHT_MOTOR_PIN_IN3 8   // IN1: input pin for right motor direction control 
@@ -23,7 +25,6 @@
 const bool forward_direction = true;
 const bool turn_right = true;
 bool car_moving = false;
-const float target_speed = 36.0f; // to be integrated with the accelerometer
 
 PID right_pid = {
     .Kp = 1.0f, 
@@ -61,24 +62,18 @@ void car_control(int car_states){
                 car_stop();
                 return; // Exit the function to prevent forward movement
             }
-            car_speed(target_speed);
             car_direction(forward_direction);
             car_move();
             break;
         case REVERSE:
-            car_speed(target_speed);
             car_direction(!forward_direction);
             car_move();
             break;
         case TURN_RIGHT:
-            car_speed(target_speed);
             car_turn(turn_right, 90); // Turn right for 90 degrees
-            car_stop();
             break;
         case TURN_LEFT:
-            car_speed(target_speed);
             car_turn(!turn_right, 90); // Turn left for 90 degrees
-            car_stop();
             break;
         case STOP:
             car_stop();
@@ -171,8 +166,8 @@ void car_turn(bool turn, int angle) {
     car_move();
     set_direction(RIGHT_MOTOR_PIN_IN3, RIGHT_MOTOR_PIN_IN4, !turn);
     set_direction(LEFT_MOTOR_PIN_IN1, LEFT_MOTOR_PIN_IN2, turn);
-    sleep_ms(angle * MS_PER_DEGREE); // Turning delay
-    car_direction(forward_direction); // Reset car direction to forward
+    // vTaskDelay(pdMS_TO_TICKS(angle * MS_PER_DEGREE)); // Delay for input angle
+    // car_direction(forward_direction); // Reset car direction to forward
 }
 
 // Function to clamp value between min and max

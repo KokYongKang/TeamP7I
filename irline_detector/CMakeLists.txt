@@ -10,7 +10,7 @@ target_include_directories(${ProjectName} PRIVATE
     ${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/include
     ${CMAKE_SOURCE_DIR}/motor  # Add this to find motor.h
     ${CMAKE_SOURCE_DIR}/encoder  # Add this to find motor.h
-
+    ${CMAKE_CURRENT_LIST_DIR}/..
 ) 
 
 target_link_libraries(${ProjectName} 

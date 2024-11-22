@@ -8,6 +8,7 @@ target_include_directories(motor PUBLIC
     ${PICO_SDK_PATH}/hardware   
     ${FREERTOS_KERNEL_PATH}/include
     ${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/include
+    ${CMAKE_CURRENT_LIST_DIR}/..
 ) 
 
 target_link_libraries(motor

@@ -36,8 +36,8 @@
 # acc_server cmakelists
 # include(../../freertos/FreeRTOS_Kernel_import.cmake)
 
-set(WIFI_SSID "${WIFI_SSID}")
-set(WIFI_PASSWORD "${WIFI_PASSWORD}")
+set(WIFI_SSID $ENV{WIFI_SSID})
+set(WIFI_PASSWORD $ENV{WIFI_PASSWORD})
 
 function(setup_proj_exec program file_name)
     #region Client
@@ -52,7 +52,7 @@ function(setup_proj_exec program file_name)
             ${CMAKE_SOURCE_DIR}/motor       # Add this to find motor.h
             ${CMAKE_SOURCE_DIR}/encoder     # Add this to find encoder.h
             ${CMAKE_SOURCE_DIR}/ultrasonic     # Add this to find ultrasonic.h
-            ../../freertos                  
+        #     ../../freertos                  
             ${CMAKE_CURRENT_LIST_DIR}/..    # for our common lwipopts or any other standard includes, if required
     )
 
@@ -77,9 +77,9 @@ function(setup_proj_exec program file_name)
 endfunction()
 
 #region Client
-# setup_proj_exec(acc_client
-#         acc_client.c
-# )
+setup_proj_exec(acc_client
+        acc_client.c
+)
 #endregion
 
 #region Server
