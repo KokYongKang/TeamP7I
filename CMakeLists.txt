@@ -16,6 +16,9 @@ project(${ProjectName})
 # Initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+set(WIFI_SSID $ENV{WIFI_SSID})
+set(WIFI_PASSWORD $ENV{WIFI_PASSWORD})
+
 # Add subdirectories
 # add_subdirectory(irline_barcode)
 # add_subdirectory (irline_detector)
@@ -23,6 +26,7 @@ add_subdirectory(motor)
 add_subdirectory(encoder)
 add_subdirectory(ultrasonic)
 add_subdirectory(acc_server)
+add_subdirectory(dashboard)
 
 # if you have anything in "lib" folder then uncomment below - remember to add a CMakeLists.txt
 # file to the "lib" directory
