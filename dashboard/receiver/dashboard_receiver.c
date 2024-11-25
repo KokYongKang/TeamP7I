@@ -1,6 +1,9 @@
+//
+// Created by Edric Chan on 25/11/2024.
+//
+
 #include <stdio.h>
 #include <string.h>
-
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 #include "FreeRTOS.h"
@@ -12,23 +15,14 @@
 #include "../motor/motor.h"
 #include "../encoder/encoder.h"
 #include "../ultrasonic/ultrasonic.h"
-#include "../dashboard/sender/dashboard_sender.h"
 
 #define UDP_PORT 4242
 #define LED_PIN 5
 
 // Task configurations
 #define TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 8)
-#define DASH_SEND_PRIORITY (tskIDLE_PRIORITY + 2)
-#define MONITOR_TASK_PRIORITY (tskIDLE_PRIORITY + 3)
+#define MONITOR_TASK_PRIORITY (tskIDLE_PRIORITY + 2)
 #define CLIENT_TIMEOUT_MS 10000  // Increased timeout
-
-// Dashboard
-#define DASH_SERVER_IP "192.168.48.198"
-#define DASH_SERVER_IP_0 192
-#define DASH_SERVER_IP_1 168
-#define DASH_SERVER_IP_2 48
-#define DASH_SERVER_IP_3 198
 
 typedef struct {
     struct udp_pcb *udp_pcb;
@@ -44,8 +38,6 @@ typedef struct {
 
 static UDP_SERVER_T* server_state;
 
-static UDP_CLIENT_T* client_state;
-
 // Function to display and execute received command
 static void display_command(const char* command) {
     if (!command || strlen(command) == 0) return;
@@ -54,40 +46,10 @@ static void display_command(const char* command) {
     printf("\n----------------------------------------\n");
     printf("Time: %lu ms\n", time_ms);
 
-    char cmd_type[32];
-    float speed = 0;
-
-    if (sscanf(command, "%s %f", cmd_type, &speed) >= 1) {
-        if (strcmp(cmd_type, "forward") == 0) {
-            printf("↑ FORWARD %.0f%%\n", speed);
-            car_speed(speed * 40 / 100.0f); // Scale speed to motor's range (max 40cm/s)
-            car_control(FORWARD);
-        } else if (strcmp(cmd_type, "backward") == 0) {
-            printf("↓ BACKWARD %.0f%%\n", speed);
-            car_speed(speed * 40 / 100.0f);
-            car_control(REVERSE);
-        } else if (strcmp(cmd_type, "left") == 0) {
-            printf("← LEFT %.0f%%\n", speed);
-            car_speed(speed * 40 / 100.0f);
-            car_control(TURN_LEFT);
-        } else if (strcmp(cmd_type, "right") == 0) {
-            printf("→ RIGHT %.0f%%\n", speed);
-            car_speed(speed * 40 / 100.0f);
-            car_control(TURN_RIGHT);
-        } else if (strcmp(cmd_type, "stop") == 0) {
-            printf("■ STOP\n");
-            car_control(STOP);
-        } else {
-            printf("Unknown Command: %s\n", command);
-        }
-    } else {
-        printf("Raw Data: %s\n", command);
-    }
+    printf("Raw Data: %s\n", command);
 
     server_state->messages_received++;
     printf("Total messages received: %lu\n", server_state->messages_received);
-
-    send_dashboard_cmd(client_state, command);
 
     // Flash LED for visual feedback
     gpio_put(LED_PIN, 1);
@@ -189,46 +151,6 @@ static void server_task(void *params) {
     }
 }
 
-static void dashboard_sender_task(void *params) {
-    UDP_CLIENT_T* state = (UDP_CLIENT_T*)params;
-
-    printf("\nStarting dashboard UDP client...\n");
-    printf("Will attempt to connect to dashboard server at %s:%d\n", DASH_SERVER_IP, UDP_PORT);
-
-    state->udp_pcb = udp_new();
-    if (!state->udp_pcb) {
-        printf("Failed to create PCB\n");
-        return;
-    }
-    printf("UDP PCB created successfully\n");
-
-    // Set up server address using proper IP address handling
-    ip4_addr_t server_ip4;
-    IP4_ADDR(&server_ip4, DASH_SERVER_IP_0, DASH_SERVER_IP_1, DASH_SERVER_IP_2, DASH_SERVER_IP_3);
-    ip_addr_copy_from_ip4(state->server_addr, server_ip4);
-
-    printf("Server dashboard address configured: %s\n", ipaddr_ntoa(&state->server_addr));
-
-    // Bind to any port
-    err_t err = udp_bind(state->udp_pcb, IP_ADDR_ANY, 0);
-    if (err != ERR_OK) {
-        printf("Failed to bind UDP PCB: %d\n", err);
-        return;
-    }
-    printf("Bound to local port successfully\n");
-
-    state->initialized = true;
-    printf("UDP dashboard client initialized successfully\n");
-
-    // Main task loop with connection monitoring
-    while(1) {
-        send_dashboard_distance(state, (left_total_distance + right_total_distance) / 2.0f);
-        send_dashboard_speed(state, left_pid.target_speed);
-        send_dashboard_duty(state, left_pid.duty_cycle, right_pid.duty_cycle);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-
 int main() {
     stdio_init_all();
 
@@ -264,14 +186,7 @@ int main() {
         return 1;
     }
 
-    client_state = calloc(1, sizeof(UDP_CLIENT_T));
-    if (!client_state) {
-        printf("Failed to allocate client state\n");
-        return 1;
-    }
-
     xTaskCreate(server_task, "UDP_Server", TASK_STACK_SIZE, server_state, tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(dashboard_sender_task, "Dash_Sender", TASK_STACK_SIZE, client_state, DASH_SEND_PRIORITY, NULL);
     xTaskCreate(monitor_task, "Monitor", TASK_STACK_SIZE, server_state, MONITOR_TASK_PRIORITY, NULL);
 
     vTaskStartScheduler();

@@ -1,6 +1,3 @@
-set(WIFI_SSID $ENV{WIFI_SSID})
-set(WIFI_PASSWORD $ENV{WIFI_PASSWORD})
-
 function(setup_proj_exec program file_name)
     #region Client
     add_executable(${program} ${file_name})
@@ -14,7 +11,8 @@ function(setup_proj_exec program file_name)
             ${CMAKE_SOURCE_DIR}/motor       # Add this to find motor.h
             ${CMAKE_SOURCE_DIR}/encoder     # Add this to find encoder.h
             ${CMAKE_SOURCE_DIR}/ultrasonic     # Add this to find ultrasonic.h
-        #     ../../freertos                  
+            ${CMAKE_SOURCE_DIR}/dashboard/sender     # Add this to find sender.h
+        #     ../../freertos
             ${CMAKE_CURRENT_LIST_DIR}/..    # for our common lwipopts or any other standard includes, if required
     )
 
@@ -28,7 +26,7 @@ function(setup_proj_exec program file_name)
             pico_stdlib hardware_i2c pico_lwip
             pico_cyw43_arch_lwip_threadsafe_background
             pico_async_context_freertos
-            FreeRTOS-Kernel-Heap4 motor encoder ultrasonic
+            FreeRTOS-Kernel-Heap4 motor encoder ultrasonic dashboard_sender
     )
 
     # create map/bin/hex file etc.
