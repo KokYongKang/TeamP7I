@@ -3,7 +3,7 @@ set(WIFI_PASSWORD $ENV{WIFI_PASSWORD})
 
 function(setup_proj_exec program file_name)
     #region Client
-    add_executable(${program} acc_server.c)
+    add_executable(${program} ${file_name})
 
     target_include_directories(${program} PRIVATE
             ${CMAKE_CURRENT_LIST_DIR}
@@ -38,14 +38,8 @@ function(setup_proj_exec program file_name)
     pico_enable_stdio_uart(${program} 0)  
 endfunction()
 
-#region Client
-setup_proj_exec(acc_client
-        acc_client.c
-)
-#endregion
-
 #region Server
-setup_proj_exec(acc_server
-        acc_server.c
+setup_proj_exec(car
+        car.c
 )
 #endregion
